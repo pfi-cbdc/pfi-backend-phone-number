@@ -2,6 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
+const axios = require('axios');
 require('dotenv').config();
 
 const app = express();
@@ -9,6 +10,12 @@ const app = express();
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Twilio Verify Service configuration
+const TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID;
+const TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN;
+const VERIFY_SERVICE_SID = process.env.VERIFY_SERVICE_SID;
+const TWILIO_BASE_URL = 'https://verify.twilio.com/v2/Services';
 
 // JWT Secret
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
@@ -24,6 +31,10 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true,
     unique: true
+  },
+  verified: {
+    type: Boolean,
+    default: false
   },
   createdAt: {
     type: Date,
@@ -70,48 +81,111 @@ const auth = async (req, res, next) => {
 };
 
 // Routes
-app.post('/api/users', async (req, res) => {
+app.post('/api/users/send-otp', async (req, res) => {
   try {
     const { phoneNumber } = req.body;
-    
-    // Check if user already exists
+    console.log('Sending OTP to:', phoneNumber);
+
+    // Find or create user
     let user = await User.findOne({ phoneNumber });
-    
     if (!user) {
-      // Create new user
       user = new User({ phoneNumber });
+      await user.save();
     }
-    
-    // Generate token
-    const token = await user.generateAuthToken();
-    
-    res.status(200).json({ 
-      message: user.createdAt ? 'Welcome back!' : 'Welcome to PFI!',
-      user,
-      token 
-    });
+
+    // For development/testing, always return success
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Development mode: Simulating OTP send');
+      // The test verification code will be '123456'
+      res.status(200).json({ message: 'Verification code sent successfully' });
+      return;
+    }
+
+    // Send verification code using Twilio Verify
+    const verifyUrl = `${TWILIO_BASE_URL}/${VERIFY_SERVICE_SID}/Verifications`;
+    const auth = Buffer.from(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`).toString('base64');
+
+    const response = await axios.post(verifyUrl, 
+      new URLSearchParams({
+        'To': phoneNumber,
+        'Channel': 'sms'
+      }).toString(),
+      {
+        headers: {
+          'Authorization': `Basic ${auth}`,
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
+      }
+    );
+
+    console.log('Twilio response:', response.data);
+    res.status(200).json({ message: 'Verification code sent successfully' });
   } catch (error) {
-    console.error('Error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Error:', error.response?.data || error);
+    res.status(500).json({ error: 'Failed to send verification code' });
+  }
+});
+
+app.post('/api/users/verify-otp', async (req, res) => {
+  try {
+    const { phoneNumber, code } = req.body;
+    console.log('Verifying OTP for:', phoneNumber);
+
+    // Verify the code using Twilio Verify
+    const verifyUrl = `${TWILIO_BASE_URL}/${VERIFY_SERVICE_SID}/VerificationCheck`;
+    const auth = Buffer.from(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`).toString('base64');
+
+    const response = await axios.post(verifyUrl,
+      new URLSearchParams({
+        'To': phoneNumber,
+        'Code': code
+      }).toString(),
+      {
+        headers: {
+          'Authorization': `Basic ${auth}`,
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
+      }
+    );
+
+    console.log('Verification response:', response.data);
+
+    if (response.data.status === 'approved') {
+      // Find and update user
+      const user = await User.findOne({ phoneNumber });
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      user.verified = true;
+      await user.save();
+
+      // Generate token
+      const token = await user.generateAuthToken();
+      
+      res.status(200).json({ 
+        message: 'Phone number verified successfully',
+        user,
+        token 
+      });
+    } else {
+      res.status(400).json({ error: 'Invalid verification code' });
+    }
+  } catch (error) {
+    console.error('Error:', error.response?.data || error);
+    res.status(500).json({ error: 'Verification failed' });
   }
 });
 
 // Logout endpoint
 app.post('/api/users/logout', auth, async (req, res) => {
   try {
-    // Remove the current token
     req.user.tokens = req.user.tokens.filter(token => token.token !== req.token);
     await req.user.save();
-    
     res.status(200).json({ message: 'Logged out successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
   }
-});
-
-// Verify token endpoint
-app.get('/api/users/me', auth, async (req, res) => {
-  res.json(req.user);
 });
 
 const PORT = process.env.PORT || 5000;
