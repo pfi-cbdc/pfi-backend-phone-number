@@ -12,6 +12,16 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Health Check Endpoint
+app.get('/', (req, res) => {
+  res.json({
+    status: 'healthy',
+    message: 'PFI API is running',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
+
 // Connect to Database
 connectDB()
   .catch((error) => {
