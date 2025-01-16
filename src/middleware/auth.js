@@ -1,20 +1,30 @@
 const jwt = require('jsonwebtoken');
-const User = require('../models/User');
+const { prisma } = require('../config/db');
 
 const auth = async (req, res, next) => {
   try {
     const token = req.header('Authorization').replace('Bearer ', '');
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
-    const user = await User.findOne({ _id: decoded._id, 'tokens.token': token });
+    
+    // Find the token in the database
+    const dbToken = await prisma.token.findFirst({
+      where: {
+        token: token
+      },
+      include: {
+        user: true
+      }
+    });
 
-    if (!user) {
-      throw new Error();
+    if (!dbToken || !dbToken.user) {
+      throw new Error('Token not found or invalid');
     }
 
     req.token = token;
-    req.user = user;
+    req.user = dbToken.user;
     next();
   } catch (error) {
+    console.error('Auth error:', error);
     res.status(401).json({ error: 'Please authenticate' });
   }
 };

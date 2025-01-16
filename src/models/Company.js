@@ -1,53 +1,30 @@
-const mongoose = require('mongoose');
+const { prisma } = require('../config/db');
 
-const companySchema = new mongoose.Schema({
-  userId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  },
-  companyName: {
-    type: String,
-    required: true
-  },
-  gstin: {
-    type: String,
-    required: true
-  },
-  brandName: {
-    type: String,
-    required: true
-  },
-  email: {
-    type: String,
-    required: true
-  },
-  pan: {
-    type: String,
-    required: true
-  },
-  alternateContact: {
-    type: String
-  },
-  website: {
-    type: String
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  },
-  updatedAt: {
-    type: Date,
-    default: Date.now
+class Company {
+  static async create(data) {
+    return prisma.company.create({
+      data: {
+        ...data,
+        user: {
+          connect: { id: data.userId }
+        }
+      }
+    });
   }
-});
 
-// Update the updatedAt timestamp before saving
-companySchema.pre('save', function(next) {
-  this.updatedAt = new Date();
-  next();
-});
+  static async findByUserId(userId) {
+    return prisma.company.findMany({
+      where: {
+        userId
+      }
+    });
+  }
 
-const Company = mongoose.model('Company', companySchema);
+  static async findById(id) {
+    return prisma.company.findUnique({
+      where: { id }
+    });
+  }
+}
 
 module.exports = Company;

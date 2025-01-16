@@ -1,38 +1,31 @@
-const mongoose = require('mongoose');
 const jwt = require('jsonwebtoken');
+const { prisma } = require('../config/db');
 
-const userSchema = new mongoose.Schema({
-  phoneNumber: {
-    type: String,
-    required: true,
-    unique: true
-  },
-  verified: {
-    type: Boolean,
-    default: false
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  },
-  tokens: [{
-    token: {
-      type: String,
-      required: true
+class User {
+  static async generateAuthToken(userId) {
+    const token = jwt.sign({ _id: userId }, process.env.JWT_SECRET || 'your-secret-key');
+    
+    await prisma.token.create({
+      data: {
+        token,
+        userId
+      }
+    });
+
+    return token;
+  }
+
+  static async findByToken(token) {
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+      const user = await prisma.user.findUnique({
+        where: { id: decoded._id }
+      });
+      return user;
+    } catch (error) {
+      return null;
     }
-  }]
-});
-
-userSchema.methods.generateAuthToken = async function() {
-  const user = this;
-  const token = jwt.sign({ _id: user._id.toString() }, process.env.JWT_SECRET || 'your-secret-key');
-  
-  user.tokens = user.tokens.concat({ token });
-  await user.save();
-  
-  return token;
-};
-
-const User = mongoose.model('User', userSchema);
+  }
+}
 
 module.exports = User;
