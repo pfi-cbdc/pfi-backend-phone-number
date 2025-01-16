@@ -1,9 +1,11 @@
-const Company = require('../models/Company');
+const { prisma } = require('../config/db');
 
 // Get company details
 const getCompanyDetails = async (req, res) => {
   try {
-    const company = await Company.findOne({ userId: req.user._id });
+    const company = await prisma.company.findFirst({
+      where: { userId: req.user.id }
+    });
     
     if (!company) {
       return res.status(404).json({ error: 'Company details not found' });
@@ -20,7 +22,6 @@ const getCompanyDetails = async (req, res) => {
 const updateCompanyDetails = async (req, res) => {
   try {
     const updates = {
-      userId: req.user._id,
       companyName: req.body.companyName,
       gstin: req.body.gstin,
       brandName: req.body.brandName,
@@ -30,17 +31,33 @@ const updateCompanyDetails = async (req, res) => {
       website: req.body.website
     };
 
-    const company = await Company.findOneAndUpdate(
-      { userId: req.user._id },
-      updates,
-      { new: true, upsert: true, runValidators: true }
-    );
+    // First try to find existing company
+    const existingCompany = await prisma.company.findFirst({
+      where: { userId: req.user.id }
+    });
+
+    let company;
+    if (existingCompany) {
+      // Update existing company
+      company = await prisma.company.update({
+        where: { id: existingCompany.id },
+        data: updates
+      });
+    } else {
+      // Create new company
+      company = await prisma.company.create({
+        data: {
+          ...updates,
+          userId: req.user.id
+        }
+      });
+    }
 
     res.json(company);
   } catch (error) {
     console.error('Error updating company details:', error);
-    if (error.name === 'ValidationError') {
-      return res.status(400).json({ error: 'Invalid input data' });
+    if (error.code === 'P2002') {
+      return res.status(400).json({ error: 'Duplicate entry found' });
     }
     res.status(500).json({ error: 'Internal server error' });
   }

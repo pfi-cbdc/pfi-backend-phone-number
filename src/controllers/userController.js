@@ -1,5 +1,6 @@
 const axios = require('axios');
-const User = require('../models/User');
+const jwt = require('jsonwebtoken');
+const { prisma } = require('../config/db');
 const { TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, VERIFY_SERVICE_SID, TWILIO_BASE_URL } = require('../config/twilio');
 
 const sendOTP = async (req, res) => {
@@ -7,10 +8,17 @@ const sendOTP = async (req, res) => {
     const { phoneNumber } = req.body;
     console.log('Sending OTP to:', phoneNumber);
 
-    let user = await User.findOne({ phoneNumber });
+    let user = await prisma.user.findUnique({
+      where: { phoneNumber }
+    });
+
     if (!user) {
-      user = new User({ phoneNumber });
-      await user.save();
+      user = await prisma.user.create({
+        data: {
+          phoneNumber,
+          verified: false
+        }
+      });
     }
 
     if (process.env.NODE_ENV === 'development') {
@@ -34,18 +42,36 @@ const sendOTP = async (req, res) => {
       }
     );
 
-    console.log('Twilio response:', response.data);
     res.status(200).json({ message: 'Verification code sent successfully' });
   } catch (error) {
-    console.error('Error:', error.response?.data || error);
-    res.status(500).json({ error: 'Failed to send verification code' });
+    console.error('Error sending OTP:', error);
+    res.status(500).json({ error: 'Error sending verification code' });
   }
 };
 
 const verifyOTP = async (req, res) => {
   try {
     const { phoneNumber, code } = req.body;
-    console.log('Verifying OTP for:', phoneNumber);
+
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Development mode: Simulating OTP verification');
+      const user = await prisma.user.findUnique({
+        where: { phoneNumber }
+      });
+
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      const token = await generateAuthToken(user.id);
+      
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { verified: true }
+      });
+
+      return res.status(200).json({ user, token });
+    }
 
     const verifyUrl = `${TWILIO_BASE_URL}/${VERIFY_SERVICE_SID}/VerificationCheck`;
     const auth = Buffer.from(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`).toString('base64');
@@ -63,41 +89,61 @@ const verifyOTP = async (req, res) => {
       }
     );
 
-    console.log('Verification response:', response.data);
-
     if (response.data.status === 'approved') {
-      const user = await User.findOne({ phoneNumber });
+      const user = await prisma.user.findUnique({
+        where: { phoneNumber }
+      });
+
       if (!user) {
         return res.status(404).json({ error: 'User not found' });
       }
 
-      user.verified = true;
-      await user.save();
-
-      const token = await user.generateAuthToken();
+      const token = await generateAuthToken(user.id);
       
-      res.status(200).json({ 
-        message: 'Phone number verified successfully',
-        user,
-        token 
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { verified: true }
       });
+
+      res.status(200).json({ user, token });
     } else {
       res.status(400).json({ error: 'Invalid verification code' });
     }
   } catch (error) {
-    console.error('Error:', error.response?.data || error);
-    res.status(500).json({ error: 'Verification failed' });
+    console.error('Error verifying OTP:', error);
+    res.status(500).json({ error: 'Error verifying code' });
   }
 };
 
 const logout = async (req, res) => {
   try {
-    req.user.tokens = req.user.tokens.filter(token => token.token !== req.token);
-    await req.user.save();
+    console.log('Logging out user:', req.user.id, 'token:', req.token);
+    
+    // Delete the specific token used for authentication
+    await prisma.token.deleteMany({
+      where: {
+        token: req.token
+      }
+    });
+
     res.status(200).json({ message: 'Logged out successfully' });
   } catch (error) {
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Logout error:', error);
+    res.status(500).json({ error: 'Error logging out' });
   }
+};
+
+const generateAuthToken = async (userId) => {
+  const token = jwt.sign({ _id: userId }, process.env.JWT_SECRET || 'your-secret-key');
+  
+  await prisma.token.create({
+    data: {
+      token,
+      userId
+    }
+  });
+
+  return token;
 };
 
 module.exports = {
