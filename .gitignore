@@ -78,7 +78,7 @@ web_modules/
 .env.test.local
 .env.production.local
 .env.local
-*.pem
+
 # parcel-bundler cache (https://parceljs.org/)
 .cache
 .parcel-cache
@@ -128,3 +128,11 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+# SSL Certificates
+*.pem
+*.key
+*.crt
+*.ca-bundle
+*.p7b
+p-fi_me/
