@@ -20,6 +20,7 @@ model User {
   createdAt   DateTime  @default(now())
   tokens      Token[]
   companies   Company[]
+  products    Product[]
 }
 
 model Token {
@@ -41,6 +42,18 @@ model Company {
   pan              String
   alternateContact String?
   website          String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model Product {
+  id               String   @id @default(uuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id])
+  productName      String
+  units            String
+  sellingPrice     Int
+  description      String
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 }
