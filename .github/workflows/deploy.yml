@@ -1,0 +1,42 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Configure SSH
+      env:
+        SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
+        KNOWN_HOSTS: ${{ secrets.KNOWN_HOSTS }}
+      run: |
+        mkdir -p ~/.ssh/
+        echo "$SSH_PRIVATE_KEY" > ~/.ssh/github-action
+        chmod 600 ~/.ssh/github-action
+        echo "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+    
+    - name: Deploy to EC2
+      env:
+        EC2_HOST: ${{ secrets.EC2_HOST }}
+      run: |
+        ssh -i ~/.ssh/github-action ubuntu@$EC2_HOST '
+          set -e
+          echo "Pulling latest changes"
+          cd ~/pfi-backend &&
+          git pull origin main
+          echo "Installing dependencies"
+          npm install
+          echo "Restarting Docker containers"
+          docker-compose down
+          docker-compose up -d
+        '
