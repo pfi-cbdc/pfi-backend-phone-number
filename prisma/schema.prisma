@@ -21,6 +21,7 @@ model User {
   tokens      Token[]
   companies   Company[]
   products    Product[]
+  purchases   Purchase[]
 }
 
 model Token {
@@ -44,6 +45,7 @@ model Company {
   website          String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+  purchases        Purchase[]
 }
 
 model Product {
@@ -56,4 +58,20 @@ model Product {
   description      String
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
+  purchases        Purchase[]
+}
+
+model Purchase {
+  id          String   @id @default(uuid())
+  companyId   String
+  productId   String
+  quantity    Int
+  price       Float
+  status      String   @default("PENDING")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  company     Company  @relation(fields: [companyId], references: [id])
+  product     Product  @relation(fields: [productId], references: [id])
 }
