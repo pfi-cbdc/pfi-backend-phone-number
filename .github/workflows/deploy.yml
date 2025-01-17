@@ -31,8 +31,15 @@ jobs:
       run: |
         ssh -i ~/.ssh/github-action ubuntu@$EC2_HOST '
           set -e
+          echo "Checking repository path"
+          cd /home/ubuntu
+          if [ ! -d "pfi-backend/.git" ]; then
+            echo "Initializing git repository"
+            rm -rf pfi-backend
+            git clone https://github.com/pfi-cbdc/pfi-backend-phone-number.git pfi-backend
+          fi
+          cd pfi-backend
           echo "Updating repository"
-          cd ~/pfi-backend
           git fetch origin main
           git reset --hard origin/main
           echo "Installing dependencies"
