@@ -28,7 +28,22 @@ jobs:
     - name: Deploy to EC2
       env:
         EC2_HOST: ${{ secrets.EC2_HOST }}
+        PORT: ${{ secrets.PORT }}
+        JWT_SECRET: ${{ secrets.JWT_SECRET }}
+        TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
+        TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
+        VERIFY_SERVICE_SID: ${{ secrets.VERIFY_SERVICE_SID }}
+        DATABASE_URL: ${{ secrets.DATABASE_URL }}
       run: |
+        ssh -i ~/.ssh/github-action ubuntu@$EC2_HOST "
+          echo \"PORT=${PORT}\" > ~/pfi-backend/.env
+          echo \"JWT_SECRET=${JWT_SECRET}\" >> ~/pfi-backend/.env
+          echo \"TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID}\" >> ~/pfi-backend/.env
+          echo \"TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}\" >> ~/pfi-backend/.env
+          echo \"VERIFY_SERVICE_SID=${VERIFY_SERVICE_SID}\" >> ~/pfi-backend/.env
+          echo \"DATABASE_URL=${DATABASE_URL}\" >> ~/pfi-backend/.env
+        "
+        
         ssh -i ~/.ssh/github-action ubuntu@$EC2_HOST '
           set -e
           # Install Docker if not present
