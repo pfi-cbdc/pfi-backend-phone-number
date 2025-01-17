@@ -63,7 +63,40 @@ const updateCompanyDetails = async (req, res) => {
   }
 };
 
+const getAllCompanies = async (req, res) => {
+  try {
+    if(!req.user.id) {
+      console.log('User not found');
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    const companies = await prisma.company.findMany();
+    res.json(companies);
+  } catch (error) {
+    console.error('Error fetching all companies:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+const getAssociatedProducts = async (req, res) => {
+  try {
+    const companyId = req.params.id;
+    const company = await prisma.company.findFirst({
+      where: { id: companyId }
+    });
+    const userId = company.userId;
+    const products = await prisma.product.findMany({
+      where: { userId }
+    });
+    res.json(products);
+  } catch (error) {
+    console.error('Error fetching associated products:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
 module.exports = {
   getCompanyDetails,
-  updateCompanyDetails
+  updateCompanyDetails,
+  getAllCompanies,
+  getAssociatedProducts
 };
