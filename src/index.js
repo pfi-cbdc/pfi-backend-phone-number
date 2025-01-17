@@ -17,7 +17,7 @@ app.use(express.json());
 app.get('/', (req, res) => {
   res.json({
     status: 'healthy',
-    message: 'PFI API is running greatly on the backend',
+    message: 'PFI API is running',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development'
   });
