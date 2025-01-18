@@ -3,13 +3,13 @@ const { prisma } = require('../config/db');
 const createPurchase = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { vendorId, productId, quantity, totalAmount } = req.body;
+    const { vendorId, productId, quantity, unitPrice } = req.body;
     const purchase = await prisma.purchase.create({
       data: {
         companyId: vendorId,
         productId,
         quantity,
-        price: totalAmount,
+        price: unitPrice,
         status: "PENDING",
         userId
       },
@@ -52,4 +52,3 @@ module.exports = {
   getPurchase,
   updatePurchaseStatus
 };
-
