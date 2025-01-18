@@ -9,7 +9,7 @@ const createPurchase = async (req, res) => {
         companyId: vendorId,
         productId,
         quantity,
-        price: totalAmount,
+        price: totalAmount / quantity,
         status: "PENDING",
         userId
       },
@@ -52,4 +52,3 @@ module.exports = {
   getPurchase,
   updatePurchaseStatus
 };
-
