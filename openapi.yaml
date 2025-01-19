@@ -1,0 +1,400 @@
+openapi: 3.0.0
+info:
+  title: PFI Backend API
+  version: 1.0.0
+  description: API documentation for PFI Backend System
+
+servers:
+  - url: http://localhost:5002
+    description: Local Development Server
+  - url: https://p-fi.me
+    description: Production Server
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    OTPRequest:
+      type: object
+      properties:
+        phoneNumber:
+          type: string
+          example: "+919876543210"
+    
+    OTPVerification:
+      type: object
+      properties:
+        phoneNumber:
+          type: string
+          example: "+919876543210"
+        code:
+          type: string
+          example: "123456"
+      required:
+        - phoneNumber
+        - code
+    
+    CompanyDetails:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "ABC Corporation"
+        address:
+          type: string
+          example: "123 Business Street"
+        gstin:
+          type: string
+          example: "22AAAAA0000A1Z5"
+        contactNumber:
+          type: string
+          example: "+919876543210"
+    
+    Product:
+      type: object
+      required:
+        - productName
+        - units
+        - sellingPrice
+      properties:
+        productName:
+          type: string
+          example: "Test123456"
+        units:
+          type: string
+          example: "Kilograms"
+        sellingPrice:
+          type: number
+          example: 15
+        description:
+          type: string
+          example: ""
+
+    Purchase:
+      type: object
+      required:
+        - vendorId
+        - productId
+        - quantity
+        - totalAmount
+      properties:
+        vendorId:
+          type: string
+          example: "vendor123"
+        productId:
+          type: string
+          example: "product456"
+        quantity:
+          type: number
+          example: 100
+        totalAmount:
+          type: number
+          example: 1500
+
+paths:
+  /:
+    get:
+      summary: Health Check Endpoint
+      tags:
+        - System
+      responses:
+        '200':
+          description: API health status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "healthy"
+                  message:
+                    type: string
+                    example: "PFI API is running"
+                  timestamp:
+                    type: string
+                    format: date-time
+                  environment:
+                    type: string
+                    example: "development"
+
+  /api/users/send-otp:
+    post:
+      summary: Send OTP to phone number
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OTPRequest'
+      responses:
+        '200':
+          description: OTP sent successfully
+        '400':
+          description: Invalid phone number
+
+  /api/users/verify-otp:
+    post:
+      summary: Verify OTP and get authentication token
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OTPVerification'
+      responses:
+        '200':
+          description: OTP verified successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+        '400':
+          description: Invalid OTP
+
+  /api/users/logout:
+    post:
+      summary: Logout user
+      tags:
+        - Authentication
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Logged out successfully
+        '401':
+          description: Unauthorized
+
+  /api/company/details:
+    get:
+      summary: Get company details
+      tags:
+        - Company
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Company details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyDetails'
+        '401':
+          description: Unauthorized
+    
+    post:
+      summary: Create or update company details
+      tags:
+        - Company
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompanyDetails'
+      responses:
+        '200':
+          description: Company details updated successfully
+        '401':
+          description: Unauthorized
+
+  /api/company/all:
+    get:
+      summary: Get all companies
+      tags:
+        - Company
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of all companies
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CompanyDetails'
+        '401':
+          description: Unauthorized
+
+  /api/company/products/{id}:
+    get:
+      summary: Get products associated with a company
+      tags:
+        - Company
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of associated products
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Product'
+        '401':
+          description: Unauthorized
+
+  /api/sell/addProduct:
+    post:
+      summary: Add a new product for selling
+      tags:
+        - Sell
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Product'
+      responses:
+        '200':
+          description: Product created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '500':
+          description: Failed to add new product
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "Failed to add new product"
+
+  /api/sell/getProducts:
+    get:
+      summary: Get all products
+      tags:
+        - Sell
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of all products
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Product'
+        '401':
+          description: Unauthorized
+
+  /api/purchase/create:
+    post:
+      summary: Create a new purchase
+      tags:
+        - Purchase
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Purchase'
+      responses:
+        '200':
+          description: Purchase created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  companyId:
+                    type: string
+                  productId:
+                    type: string
+                  quantity:
+                    type: number
+                  price:
+                    type: number
+                  status:
+                    type: string
+                    enum: ["PENDING"]
+                  userId:
+                    type: string
+        '500':
+          description: Error creating purchase
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+
+  /api/purchase/all:
+    get:
+      summary: Get all purchases
+      tags:
+        - Purchase
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of all purchases
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Purchase'
+        '401':
+          description: Unauthorized
+
+  /api/purchase/{id}/status:
+    put:
+      summary: Update purchase status
+      tags:
+        - Purchase
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [pending, approved, rejected]
+      responses:
+        '200':
+          description: Purchase status updated successfully
+        '401':
+          description: Unauthorized

@@ -1,6 +1,9 @@
 const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
+const swaggerUi = require('swagger-ui-express');
+const YAML = require('yamljs');
+const swaggerDocument = YAML.load('./openapi.yaml');
 
 const { connectDB } = require('./config/db');
 const userRoutes = require('./routes/userRoutes');
@@ -29,6 +32,9 @@ connectDB()
     console.error('Failed to connect to database:', error);
     process.exit(1);
   });
+
+// Swagger UI route
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 // Routes
 app.use('/api/users', userRoutes);
