@@ -1,6 +1,6 @@
 const express = require('express');
 const auth = require('../middleware/auth');
-const { createPurchase, getPurchase, updatePurchaseStatus } = require('../controllers/purchaseConroller');
+const { createPurchase, getPurchase, updatePurchaseStatus } = require('../controllers/purchaseController');
 
 const router = express.Router();
 
