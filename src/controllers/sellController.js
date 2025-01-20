@@ -38,4 +38,45 @@ const getProduct = async (req, res) => {
     }
 }
 
-module.exports = { createProduct, getProduct };
+const deleteProduct = async (req, res) => {
+    try {
+        const { productId } = req.params;
+        
+        // Check if product exists and belongs to the user
+        const product = await prisma.product.findFirst({
+            where: {
+                id: productId,
+                userId: req.user.id
+            },
+            include: {
+                purchases: true
+            }
+        });
+
+        if (!product) {
+            return res.status(404).json({ error: 'Product not found or unauthorized' });
+        }
+
+        // Check if product has associated purchases
+        if (product.purchases && product.purchases.length > 0) {
+            return res.status(400).json({ 
+                error: 'Cannot delete product with existing purchases. Please delete associated purchases first.',
+                hasPurchases: true
+            });
+        }
+
+        // Delete the product
+        await prisma.product.delete({
+            where: {
+                id: productId
+            }
+        });
+
+        res.json({ message: 'Product deleted successfully' });
+    } catch (error) {
+        console.error('Error deleting product:', error);
+        res.status(500).json({ error: 'Failed to delete product' });
+    }
+};
+
+module.exports = { createProduct, getProduct, deleteProduct };
