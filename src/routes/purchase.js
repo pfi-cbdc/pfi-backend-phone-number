@@ -1,12 +1,22 @@
 const express = require('express');
 const auth = require('../middleware/auth');
-const { createPurchase, getPurchase, updatePurchaseStatus, getPurchasesByStatus } = require('../controllers/purchaseController');
+const { 
+    createPurchase, 
+    getPurchase, 
+    updatePurchaseStatus, 
+    getPurchasesByStatus,
+    getVendorSales 
+} = require('../controllers/purchaseController');
 
 const router = express.Router();
 
+// Purchase routes
 router.post('/create', auth, createPurchase);
 router.get('/all', auth, getPurchase);
 router.put('/:id/status', auth, updatePurchaseStatus);
 router.get('/status/:status', auth, getPurchasesByStatus);
+
+// Sales routes (for vendors)
+router.get('/vendor/sales', auth, getVendorSales);
 
 module.exports = router;
