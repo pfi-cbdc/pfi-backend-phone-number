@@ -61,17 +61,26 @@ model Product {
   purchases        Purchase[]
 }
 
+enum PurchaseStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+}
+
 model Purchase {
   id          String   @id @default(uuid())
   companyId   String
   productId   String
   quantity    Int
   price       Float
-  status      String   @default("PENDING")
+  status      PurchaseStatus @default(PENDING)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   userId      String
   user        User     @relation(fields: [userId], references: [id])
   company     Company  @relation(fields: [companyId], references: [id])
   product     Product  @relation(fields: [productId], references: [id])
+  vendorId    String   // ID of the vendor (seller)
+  isVendorAccepted Boolean @default(false)
 }
