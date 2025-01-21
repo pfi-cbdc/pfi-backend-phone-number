@@ -153,20 +153,31 @@ const updatePurchaseStatus = async (req, res) => {
 
     // First, get the purchase to check permissions
     const purchase = await prisma.purchase.findUnique({
-      where: { id }
+      where: { id },
+      include: {
+        company: true
+      }
     });
 
     if (!purchase) {
       return res.status(404).json({ error: 'Purchase not found' });
     }
 
-    // Check if the user is either the buyer or the vendor
-    if (purchase.userId !== userId && purchase.vendorId !== userId) {
+    // Get the user's company if they have one
+    const userCompany = await prisma.company.findFirst({
+      where: { userId }
+    });
+
+    // Check if the user is either the buyer or the vendor (through company)
+    const isVendor = userCompany && userCompany.id === purchase.vendorId;
+    const isBuyer = purchase.userId === userId;
+
+    if (!isVendor && !isBuyer) {
       return res.status(403).json({ error: 'Not authorized to update this purchase' });
     }
 
     // If the user is the vendor and trying to accept/reject
-    if (purchase.vendorId === userId) {
+    if (isVendor) {
       if (status === 'IN_PROGRESS') {
         await prisma.purchase.update({
           where: { id },
@@ -186,7 +197,7 @@ const updatePurchaseStatus = async (req, res) => {
       }
     }
     // If the user is the buyer
-    else if (purchase.userId === userId) {
+    else if (isBuyer) {
       // Buyer can only update if vendor has accepted
       if (purchase.isVendorAccepted || status === 'FAILED') {
         await prisma.purchase.update({
