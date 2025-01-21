@@ -84,6 +84,7 @@ components:
       properties:
         vendorId:
           type: string
+          description: ID of the vendor's company
           example: "vendor123"
         productId:
           type: string
@@ -94,6 +95,34 @@ components:
         totalAmount:
           type: number
           example: 1500
+        status:
+          type: string
+          enum: [PENDING, IN_PROGRESS, COMPLETED, FAILED]
+          default: PENDING
+        isVendorAccepted:
+          type: boolean
+          default: false
+        company:
+          type: object
+          properties:
+            brandName:
+              type: string
+            companyName:
+              type: string
+        product:
+          type: object
+          properties:
+            productName:
+              type: string
+
+    PurchaseStatusUpdate:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum: [PENDING, IN_PROGRESS, COMPLETED, FAILED]
 
 paths:
   /:
@@ -416,6 +445,60 @@ paths:
         '401':
           description: Unauthorized
 
+  /api/purchase/vendor/sales:
+    get:
+      summary: Get all sales for the vendor
+      tags:
+        - Purchase
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of all sales for the vendor
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Purchase'
+        '401':
+          description: Unauthorized
+        '404':
+          description: No company found for this user
+
+  /api/purchase/status/{status}:
+    get:
+      summary: Get purchases filtered by status
+      tags:
+        - Purchase
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [PENDING, IN_PROGRESS, COMPLETED, FAILED]
+        - name: type
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [purchase, sale]
+          description: Whether to get purchases or sales
+      responses:
+        '200':
+          description: List of filtered purchases
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Purchase'
+        '401':
+          description: Unauthorized
+
   /api/purchase/{id}/status:
     put:
       summary: Update purchase status
@@ -434,13 +517,17 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                status:
-                  type: string
-                  enum: [pending, approved, rejected]
+              $ref: '#/components/schemas/PurchaseStatusUpdate'
       responses:
         '200':
           description: Purchase status updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Purchase'
         '401':
           description: Unauthorized
+        '403':
+          description: Not authorized to update this purchase
+        '404':
+          description: Purchase not found
